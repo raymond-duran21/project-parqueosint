@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,61 +20,48 @@ import {
 } from 'lucide-react-native';
 import { ParkingCard } from '@/components/ParkingCard';
 import { FilterModal } from '@/components/FilterModal';
-
-const mockParkings = [
-  {
-    id: '1',
-    name: 'Centro Comercial Plaza',
-    address: 'Av. Principal 123, Centro',
-    distance: '0.2 km',
-    pricePerHour: 2500,
-    availableSpots: 15,
-    totalSpots: 100,
-    features: ['Cámaras', 'Sensores', 'QR'],
-    status: 'available',
-  },
-  {
-    id: '2',
-    name: 'Parqueo Municipal Norte',
-    address: 'Calle 5ta Norte, Zona 1',
-    distance: '0.5 km',
-    pricePerHour: 1800,
-    availableSpots: 3,
-    totalSpots: 50,
-    features: ['Sensores', 'QR'],
-    status: 'limited',
-  },
-  {
-    id: '3',
-    name: 'Torre Empresarial',
-    address: 'Blvd. Los Próceres 445',
-    distance: '0.8 km',
-    pricePerHour: 3200,
-    availableSpots: 0,
-    totalSpots: 200,
-    features: ['Cámaras', 'Sensores', 'QR', 'Valet'],
-    status: 'full',
-  },
-  {
-    id: '4',
-    name: 'Estadio Nacional',
-    address: 'Av. del Deporte s/n',
-    distance: '1.2 km',
-    pricePerHour: 1500,
-    availableSpots: 45,
-    totalSpots: 300,
-    features: ['Sensores'],
-    status: 'available',
-  },
-];
+import { ParkingService } from '@/db/services/ParkingService';
+import { Parking } from '@/db/models';
 
 export default function MapScreen() {
   const [filterVisible, setFilterVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [parkings, setParkings] = useState<Parking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ availableParkings: 0, availableSpots: 0 });
+  const [parkingService] = useState(() => new ParkingService());
+
+  useEffect(() => {
+    loadParkings();
+    loadStats();
+  }, []);
+
+  const loadParkings = async () => {
+    try {
+      const data = await parkingService.getAllParkings();
+      setParkings(data);
+    } catch (error) {
+      console.error('Error cargando parqueos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const availableParkings = await parkingService.getAvailableParkingsCount();
+      const availableSpots = await parkingService.getTotalAvailableSpots();
+      setStats({ availableParkings, availableSpots });
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error);
+    }
+  };
 
   const handleAutoSearch = () => {
-    // Simular búsqueda automática
+    // Simular búsqueda automática - recargar datos
     console.log('Buscando parqueo automáticamente...');
+    loadParkings();
+    loadStats();
   };
 
   const handleParkingPress = (parkingId: string) => {
@@ -105,23 +92,39 @@ export default function MapScreen() {
       <View style={styles.stats}>
         <View style={styles.statItem}>
           <MapPin size={16} color="#10B981" />
-          <Text style={styles.statText}>4 parqueos cercanos</Text>
+          <Text style={styles.statText}>{stats.availableParkings} parqueos cercanos</Text>
         </View>
         <View style={styles.statItem}>
           <Car size={16} color="#F59E0B" />
-          <Text style={styles.statText}>63 espacios disponibles</Text>
+          <Text style={styles.statText}>{stats.availableSpots} espacios disponibles</Text>
         </View>
       </View>
 
       <ScrollView style={styles.parkingList} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Parqueos Disponibles</Text>
-        {mockParkings.map((parking) => (
-          <ParkingCard
-            key={parking.id}
-            parking={parking}
-            onPress={() => handleParkingPress(parking.id)}
-          />
-        ))}
+        {loading ? (
+          <Text style={styles.loadingText}>Cargando parqueos...</Text>
+        ) : parkings.length > 0 ? (
+          parkings.map((parking) => (
+            <ParkingCard
+              key={parking.id}
+              parking={{
+                id: parking.id.toString(),
+                name: parking.name,
+                address: parking.address,
+                distance: parking.distance || '0 km',
+                pricePerHour: parking.pricePerHour,
+                availableSpots: parking.availableSpots,
+                totalSpots: parking.totalSpots,
+                features: parking.features,
+                status: parking.status,
+              }}
+              onPress={() => handleParkingPress(parking.id.toString())}
+            />
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No hay parqueos disponibles</Text>
+        )}
       </ScrollView>
 
       <TouchableOpacity style={styles.autoSearchButton} onPress={handleAutoSearch}>
@@ -236,5 +239,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 32,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 32,
   },
 });
