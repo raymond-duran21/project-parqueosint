@@ -34,6 +34,11 @@ export interface Parking {
   availableSpots: number;
   features: string[];
   status: 'available' | 'limited' | 'full';
+  description?: string;
+  operatingHours?: string;
+  security?: string;
+  paymentMethods?: string[];
+  contactPhone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -101,10 +106,19 @@ export interface LoginDTO {
 }
 
 export interface CreateReservationDTO {
-  user_id: number;
-  parking_id: number;
-  start_time: string;
+  userId: number;
+  parkingId: number;
+  startTime: string;
+  endTime?: string;
+  totalAmount?: number;
+  paymentMethod?: string;
+  status?: 'active' | 'completed' | 'cancelled';
   estimated_duration_minutes?: number;
+  
+  // Campos legacy para retrocompatibilidad
+  user_id?: number;
+  parking_id?: number;
+  start_time?: string;
 }
 
 export interface UpdateReservationDTO {

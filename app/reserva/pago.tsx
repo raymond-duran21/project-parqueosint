@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,19 +11,9 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Clock, MapPin, DollarSign, CreditCard, Smartphone, Calendar, QrCode, CircleCheck as CheckCircle } from 'lucide-react-native';
-
-const mockParkingData = {
-  '1': {
-    name: 'Centro Comercial Plaza',
-    address: 'Av. Principal 123, Centro',
-    pricePerHour: 2500,
-  },
-  '2': {
-    name: 'Parqueo Municipal Norte',
-    address: 'Calle 5ta Norte, Zona 1',
-    pricePerHour: 1800,
-  },
-};
+import { ParkingService } from '@/db/services/ParkingService';
+import { ReservationService } from '@/db/services/ReservationService';
+import { Parking } from '@/db/models';
 
 export default function PaymentScreen() {
   const { parkingId } = useLocalSearchParams<{ parkingId: string }>();
@@ -31,8 +21,24 @@ export default function PaymentScreen() {
   const [selectedPayment, setSelectedPayment] = useState('card');
   const [loading, setLoading] = useState(false);
   const [reservationConfirmed, setReservationConfirmed] = useState(false);
+  const [parking, setParking] = useState<Parking | null>(null);
+  const [reservationCode, setReservationCode] = useState('');
+  const [parkingService] = useState(() => new ParkingService());
+  const [reservationService] = useState(() => new ReservationService());
 
-  const parking = mockParkingData[parkingId as keyof typeof mockParkingData];
+  useEffect(() => {
+    loadParkingDetails();
+  }, [parkingId]);
+
+  const loadParkingDetails = async () => {
+    try {
+      const parkingData = await parkingService.getParkingById(parseInt(parkingId as string, 10));
+      setParking(parkingData);
+    } catch (error) {
+      console.error('Error cargando detalles del parqueo:', error);
+      Alert.alert('Error', 'No se pudo cargar la información del parqueo');
+    }
+  };
 
   if (!parking) {
     return (
@@ -62,14 +68,49 @@ export default function PaymentScreen() {
     return `₡${amount.toLocaleString()}`;
   };
 
-  const handleConfirmReservation = () => {
+  const handleConfirmReservation = async () => {
     setLoading(true);
     
-    // Simular proceso de pago
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Crear la reserva en la base de datos
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + selectedDuration * 60 * 60 * 1000);
+      
+      const newReservation = {
+        parkingId: parking.id,
+        userId: 1, // Usuario mock - en una aplicación real esto vendría del contexto de autenticación
+        status: 'active' as const,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        totalAmount: calculateTotal(),
+        paymentMethod: selectedPayment,
+      };
+      
+      const reservation = await reservationService.createReservation(newReservation);
+      
+      if (!reservation) {
+        throw new Error('No se pudo crear la reserva');
+      }
+      
+      // Generar código de reserva
+      setReservationCode(`SP${reservation.id.toString().padStart(6, '0')}`);
+      
+      // Actualizar espacios disponibles en el parqueo
+      const updateSuccess = await parkingService.decrementAvailableSpots(parking.id);
+      if (!updateSuccess) {
+        console.warn('No se pudo actualizar la disponibilidad del parqueo');
+      }
+      
       setReservationConfirmed(true);
-    }, 2000);
+    } catch (error) {
+      console.error('Error confirmando reserva:', error);
+      Alert.alert(
+        'Error', 
+        'No se pudo confirmar la reserva. Por favor, inténtalo de nuevo.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFinish = () => {
@@ -125,7 +166,7 @@ export default function PaymentScreen() {
               <Calendar size={16} color="#6B7280" />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Código de Reserva</Text>
-                <Text style={styles.detailValue}>#SP{Date.now().toString().slice(-6)}</Text>
+                <Text style={styles.detailValue}>#{reservationCode || `SP${Date.now().toString().slice(-6)}`}</Text>
               </View>
             </View>
           </View>

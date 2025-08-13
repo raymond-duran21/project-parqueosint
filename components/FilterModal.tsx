@@ -9,15 +9,23 @@ import {
 } from 'react-native';
 import { X, MapPin, DollarSign, Car } from 'lucide-react-native';
 
+export interface FilterOptions {
+  distance: string;
+  price: string;
+  features: string[];
+}
+
 interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
+  onApplyFilters?: (filters: FilterOptions) => void;
+  initialFilters?: FilterOptions;
 }
 
-export function FilterModal({ visible, onClose }: FilterModalProps) {
-  const [selectedDistance, setSelectedDistance] = useState('1km');
-  const [selectedPrice, setSelectedPrice] = useState('all');
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+export function FilterModal({ visible, onClose, onApplyFilters, initialFilters }: FilterModalProps) {
+  const [selectedDistance, setSelectedDistance] = useState(initialFilters?.distance || '1km');
+  const [selectedPrice, setSelectedPrice] = useState(initialFilters?.price || 'all');
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialFilters?.features || []);
 
   const distances = [
     { label: '500m', value: '500m' },
@@ -52,6 +60,16 @@ export function FilterModal({ visible, onClose }: FilterModalProps) {
     setSelectedDistance('1km');
     setSelectedPrice('all');
     setSelectedFeatures([]);
+  };
+
+  const applyFilters = () => {
+    const filters: FilterOptions = {
+      distance: selectedDistance,
+      price: selectedPrice,
+      features: selectedFeatures,
+    };
+    onApplyFilters?.(filters);
+    onClose();
   };
 
   return (
@@ -155,7 +173,7 @@ export function FilterModal({ visible, onClose }: FilterModalProps) {
             <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
               <Text style={styles.clearButtonText}>Limpiar Filtros</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={onClose}>
+            <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
               <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
             </TouchableOpacity>
           </View>

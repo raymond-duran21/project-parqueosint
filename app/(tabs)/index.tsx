@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Search,
   Filter,
@@ -22,6 +22,7 @@ import { ParkingCard } from '@/components/ParkingCard';
 import { FilterModal } from '@/components/FilterModal';
 import { ParkingService } from '@/db/services/ParkingService';
 import { Parking } from '@/db/models';
+import { Database } from '@/db/database';
 
 export default function MapScreen() {
   const [filterVisible, setFilterVisible] = useState(false);
@@ -35,6 +36,15 @@ export default function MapScreen() {
     loadParkings();
     loadStats();
   }, []);
+
+  // Recargar datos cuando la pantalla vuelve al foco (después de hacer una reserva)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Pantalla principal en foco, recargando datos...');
+      loadParkings();
+      loadStats();
+    }, [])
+  );
 
   const loadParkings = async () => {
     try {
@@ -62,6 +72,19 @@ export default function MapScreen() {
     console.log('Buscando parqueo automáticamente...');
     loadParkings();
     loadStats();
+  };
+
+  const handleResetDatabase = async () => {
+    console.log('Reseteando base de datos...');
+    try {
+      const db = Database.getInstance();
+      await db.resetDatabase();
+      console.log('Base de datos reseteada, recargando datos...');
+      await loadParkings();
+      await loadStats();
+    } catch (error) {
+      console.error('Error reseteando base de datos:', error);
+    }
   };
 
   const handleParkingPress = (parkingId: string) => {

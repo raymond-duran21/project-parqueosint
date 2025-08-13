@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 // Configuración de la base de datos
 const DATABASE_NAME = 'smartparking.db';
+const DATABASE_VERSION = 2; // Incrementar para forzar recreación
 
 // Interface para el resultado de la base de datos
 export interface DBResult {
@@ -30,6 +31,10 @@ export class Database {
   public async init(): Promise<void> {
     try {
       this.db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      
+      // Verificar si necesitamos recrear la base de datos
+      await this.checkAndMigrate();
+      
       await this.createTables();
       await this.seedData();
       console.log('Base de datos inicializada correctamente');
@@ -37,6 +42,51 @@ export class Database {
       console.error('Error al inicializar la base de datos:', error);
       throw error;
     }
+  }
+
+  private async checkAndMigrate(): Promise<void> {
+    if (!this.db) throw new Error('Base de datos no inicializada');
+    
+    try {
+      // Verificar si existe la columna description en la tabla parkings
+      const result = await this.db.getFirstAsync("PRAGMA table_info(parkings)");
+      
+      // Si no hay tabla parkings o no tiene la estructura correcta, recrear
+      if (!result) {
+        console.log('Tabla parkings no existe, será creada...');
+        return;
+      }
+      
+      // Verificar si existe la columna description
+      const columns = await this.db.getAllAsync("PRAGMA table_info(parkings)");
+      const hasDescription = columns.some((col: any) => col.name === 'description');
+      
+      if (!hasDescription) {
+        console.log('Esquema desactualizado detectado, recreando base de datos...');
+        await this.recreateDatabase();
+      }
+    } catch (error) {
+      console.log('Error al verificar esquema, recreando base de datos...', error);
+      await this.recreateDatabase();
+    }
+  }
+
+  private async recreateDatabase(): Promise<void> {
+    if (!this.db) throw new Error('Base de datos no inicializada');
+    
+    // Eliminar todas las tablas
+    const tables = ['vehicles', 'payment_methods', 'reservations', 'parkings', 'users'];
+    
+    for (const table of tables) {
+      try {
+        await this.db.execAsync(`DROP TABLE IF EXISTS ${table}`);
+        console.log(`Tabla ${table} eliminada`);
+      } catch (error) {
+        console.warn(`Error eliminando tabla ${table}:`, error);
+      }
+    }
+    
+    console.log('Base de datos recreada exitosamente');
   }
 
   private async createTables(): Promise<void> {
@@ -66,6 +116,11 @@ export class Database {
         available_spots INTEGER NOT NULL,
         features TEXT, -- JSON string
         status TEXT DEFAULT 'available',
+        description TEXT,
+        operating_hours TEXT DEFAULT '06:00 - 23:00',
+        security TEXT DEFAULT 'Vigilancia básica',
+        payment_methods TEXT, -- JSON string
+        contact_phone TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -141,7 +196,7 @@ export class Database {
 
     const userId = 1; // Asumimos que es el primer usuario
 
-    // Insertar parqueos de prueba
+    // Insertar parqueos de prueba con información completa
     const parkings = [
       {
         name: 'Centro Comercial Plaza',
@@ -150,7 +205,12 @@ export class Database {
         total: 100,
         available: 15,
         features: JSON.stringify(['Cámaras', 'Sensores', 'QR']),
-        status: 'available'
+        status: 'available',
+        description: 'Parqueo seguro en el corazón del centro comercial con acceso directo a todas las tiendas.',
+        operatingHours: '06:00 - 23:00',
+        security: 'Vigilancia 24/7 con cámaras de seguridad',
+        paymentMethods: JSON.stringify(['Tarjeta de crédito', 'Wallet digital', 'Efectivo']),
+        contactPhone: '+502 2234-5678'
       },
       {
         name: 'Parqueo Municipal Norte',
@@ -159,7 +219,12 @@ export class Database {
         total: 50,
         available: 3,
         features: JSON.stringify(['Sensores', 'QR']),
-        status: 'limited'
+        status: 'limited',
+        description: 'Parqueo municipal con tarifas accesibles y tecnología de sensores para facilitar encontrar espacios.',
+        operatingHours: '05:00 - 22:00',
+        security: 'Patrullaje regular y sensores de movimiento',
+        paymentMethods: JSON.stringify(['Tarjeta de crédito', 'Wallet digital']),
+        contactPhone: '+502 2234-5679'
       },
       {
         name: 'Torre Empresarial',
@@ -168,7 +233,12 @@ export class Database {
         total: 200,
         available: 0,
         features: JSON.stringify(['Cámaras', 'Sensores', 'QR', 'Valet']),
-        status: 'full'
+        status: 'full',
+        description: 'Parqueo premium con servicio de valet parking y máxima seguridad para el distrito financiero.',
+        operatingHours: '24 horas',
+        security: 'Seguridad profesional 24/7 y sistema de cámaras HD',
+        paymentMethods: JSON.stringify(['Tarjeta de crédito', 'Wallet digital', 'Transferencias']),
+        contactPhone: '+502 2234-5680'
       },
       {
         name: 'Estadio Nacional',
@@ -177,15 +247,24 @@ export class Database {
         total: 300,
         available: 45,
         features: JSON.stringify(['Sensores']),
-        status: 'available'
+        status: 'available',
+        description: 'Amplio parqueo del estadio nacional con capacidad para eventos masivos y tarifas económicas.',
+        operatingHours: '06:00 - 24:00',
+        security: 'Personal de seguridad en horarios de eventos',
+        paymentMethods: JSON.stringify(['Tarjeta de crédito', 'Efectivo']),
+        contactPhone: '+502 2234-5681'
       }
     ];
 
     for (const parking of parkings) {
       await this.db.runAsync(
-        `INSERT INTO parkings (name, address, price_per_hour, total_spots, available_spots, features, status) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [parking.name, parking.address, parking.price, parking.total, parking.available, parking.features, parking.status]
+        `INSERT INTO parkings (name, address, price_per_hour, total_spots, available_spots, features, status, description, operating_hours, security, payment_methods, contact_phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          parking.name, parking.address, parking.price, parking.total, parking.available, 
+          parking.features, parking.status, parking.description, parking.operatingHours, 
+          parking.security, parking.paymentMethods, parking.contactPhone
+        ]
       );
     }
 
@@ -273,6 +352,21 @@ export class Database {
     if (this.db) {
       await this.db.closeAsync();
       this.db = null;
+    }
+  }
+
+  // Método público para forzar el reset de la base de datos
+  public async resetDatabase(): Promise<void> {
+    try {
+      if (this.db) {
+        await this.recreateDatabase();
+        await this.createTables();
+        await this.seedData();
+        console.log('Base de datos reseteada correctamente');
+      }
+    } catch (error) {
+      console.error('Error al resetear la base de datos:', error);
+      throw error;
     }
   }
 }

@@ -22,6 +22,11 @@ export class ParkingService {
           available_spots as availableSpots,
           features,
           status,
+          description,
+          operating_hours as operatingHours,
+          security,
+          payment_methods as paymentMethods,
+          contact_phone as contactPhone,
           created_at,
           updated_at
         FROM parkings 
@@ -33,6 +38,7 @@ export class ParkingService {
       return results.map(row => ({
         ...row,
         features: JSON.parse(row.features || '[]'),
+        paymentMethods: JSON.parse(row.paymentMethods || '[]'),
         distance: this.calculateDistance(row.latitude, row.longitude) // Simulado por ahora
       }));
     } catch (error) {
@@ -55,6 +61,11 @@ export class ParkingService {
           available_spots as availableSpots,
           features,
           status,
+          description,
+          operating_hours as operatingHours,
+          security,
+          payment_methods as paymentMethods,
+          contact_phone as contactPhone,
           created_at,
           updated_at
         FROM parkings 
@@ -70,6 +81,7 @@ export class ParkingService {
       return {
         ...result,
         features: JSON.parse(result.features || '[]'),
+        paymentMethods: JSON.parse(result.paymentMethods || '[]'),
         distance: this.calculateDistance(result.latitude, result.longitude)
       } as Parking;
     } catch (error) {
@@ -284,6 +296,44 @@ export class ParkingService {
     } catch (error) {
       console.error('Error obteniendo total de espacios:', error);
       return 0;
+    }
+  }
+
+  // Método simplificado para decrementar espacios disponibles
+  async decrementAvailableSpots(parkingId: number): Promise<boolean> {
+    try {
+      console.log(`Decrementando espacios disponibles para parqueo ${parkingId}`);
+      
+      // Primero obtener los espacios actuales
+      const currentParking = await this.getParkingById(parkingId);
+      if (!currentParking || currentParking.availableSpots <= 0) {
+        console.error('No hay espacios disponibles para decrementar');
+        return false;
+      }
+      
+      const newAvailableSpots = currentParking.availableSpots - 1;
+      console.log(`Espacios antes: ${currentParking.availableSpots}, después: ${newAvailableSpots}`);
+      
+      // Determinar nuevo status
+      let newStatus: 'available' | 'limited' | 'full';
+      if (newAvailableSpots === 0) {
+        newStatus = 'full';
+      } else if (newAvailableSpots <= 5) {
+        newStatus = 'limited';
+      } else {
+        newStatus = 'available';
+      }
+      
+      const result = await this.db.executeQuery(
+        'UPDATE parkings SET available_spots = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [newAvailableSpots, newStatus, parkingId]
+      );
+      
+      console.log(`Resultado de actualización:`, result);
+      return result.rowsAffected > 0;
+    } catch (error) {
+      console.error('Error decrementando espacios disponibles:', error);
+      return false;
     }
   }
 }

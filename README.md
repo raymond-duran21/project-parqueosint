@@ -139,6 +139,3 @@ project-parqueosint/
 
 Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE.md](LICENSE.md) para detalles.
 
----
-
-**Desarrollado con ❤️ usando React Native, Expo y SQLite**

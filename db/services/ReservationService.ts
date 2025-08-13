@@ -87,23 +87,61 @@ export class ReservationService {
 
   async createReservation(reservationData: CreateReservationDTO): Promise<Reservation | null> {
     try {
+      console.log('ReservationService.createReservation - Datos recibidos:', reservationData);
+      
+      // Calcular duración en minutos si tenemos startTime y endTime
+      let durationMinutes = reservationData.estimated_duration_minutes || 60;
+      if (reservationData.startTime && reservationData.endTime) {
+        const start = new Date(reservationData.startTime);
+        const end = new Date(reservationData.endTime);
+        durationMinutes = Math.floor((end.getTime() - start.getTime()) / (1000 * 60));
+        console.log('Duración calculada:', durationMinutes, 'minutos');
+      }
+
+      const queryParams = [
+        reservationData.userId,
+        reservationData.parkingId,
+        reservationData.startTime,
+        reservationData.endTime,
+        durationMinutes,
+        reservationData.totalAmount || 0,
+        reservationData.status || 'active'
+      ];
+      
+      console.log('Parámetros de la query:', queryParams);
+
       const result = await this.db.executeQuery(
-        `INSERT INTO reservations (user_id, parking_id, start_time, duration_minutes, amount) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          reservationData.user_id,
-          reservationData.parking_id,
-          reservationData.start_time,
-          reservationData.estimated_duration_minutes || 60, // Default 1 hour
-          0 // Amount will be calculated when reservation ends
-        ]
+        `INSERT INTO reservations (user_id, parking_id, start_time, end_time, duration_minutes, amount, status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        queryParams
       );
 
+      console.log('Resultado de la inserción:', result);
+
       if (!result.insertId) {
+        console.error('No se pudo obtener insertId de la reserva');
         return null;
       }
 
-      return await this.getReservationById(result.insertId);
+      // Crear objeto de reserva simulado ya que getReservationById puede fallar
+      const reservationResponse = {
+        id: result.insertId,
+        user_id: reservationData.userId,
+        parking_id: reservationData.parkingId,
+        parkingName: '', // Se llenará después si es necesario
+        address: '', // Se llenará después si es necesario
+        startTime: reservationData.startTime,
+        endTime: reservationData.endTime,
+        durationMinutes: durationMinutes,
+        duration: this.formatDuration(durationMinutes),
+        amount: reservationData.totalAmount || 0,
+        status: reservationData.status || 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Reserva creada exitosamente:', reservationResponse);
+      return reservationResponse;
     } catch (error) {
       console.error('Error creando reserva:', error);
       return null;
