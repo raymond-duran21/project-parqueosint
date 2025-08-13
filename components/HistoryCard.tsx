@@ -30,6 +30,32 @@ export function HistoryCard({ historyItem }: HistoryCardProps) {
     return `₡${amount.toLocaleString()}`;
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Activo';
+      case 'completed':
+        return 'Completado';
+      case 'cancelled':
+        return 'Cancelado';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return '#2563EB'; // azul
+      case 'completed':
+        return '#10B981'; // verde
+      case 'cancelled':
+        return '#EF4444'; // rojo
+      default:
+        return '#6B7280'; // gris
+    }
+  };
+
   return (
     <TouchableOpacity style={styles.card}>
       <View style={styles.header}>
@@ -41,7 +67,14 @@ export function HistoryCard({ historyItem }: HistoryCardProps) {
           </View>
         </View>
         <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>Completado</Text>
+          <Text
+            style={[
+              styles.statusText,
+              { color: getStatusColor(historyItem.status) },
+            ]}
+          >
+            {getStatusLabel(historyItem.status)}
+          </Text>
         </View>
       </View>
 

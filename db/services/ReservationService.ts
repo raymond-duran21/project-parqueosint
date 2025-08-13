@@ -1,5 +1,10 @@
 import { Database } from '../database';
-import { Reservation, ReservationHistory, CreateReservationDTO, UpdateReservationDTO } from '../models';
+import {
+  CreateReservationDTO,
+  Reservation,
+  ReservationHistory,
+  UpdateReservationDTO,
+} from '../models';
 
 export class ReservationService {
   private db: Database;
@@ -26,10 +31,10 @@ export class ReservationService {
         WHERE r.user_id = ?
         ORDER BY r.start_time DESC
       `;
-      
+
       const results = await this.db.getAll(query, [userId]);
-      
-      return results.map(row => ({
+
+      return results.map((row) => ({
         id: row.id.toString(),
         parkingName: row.parkingName,
         address: row.address,
@@ -38,7 +43,7 @@ export class ReservationService {
         endTime: this.formatTime(row.endTime),
         duration: this.formatDuration(row.duration_minutes),
         amount: row.amount,
-        status: row.status
+        status: row.status,
       }));
     } catch (error) {
       console.error('Error obteniendo reservas del usuario:', error);
@@ -57,9 +62,9 @@ export class ReservationService {
         JOIN parkings p ON r.parking_id = p.id
         WHERE r.id = ? LIMIT 1
       `;
-      
+
       const result = await this.db.getFirst(query, [reservationId]);
-      
+
       if (!result) {
         return null;
       }
@@ -77,7 +82,7 @@ export class ReservationService {
         amount: result.amount,
         status: result.status,
         created_at: result.created_at,
-        updated_at: result.updated_at
+        updated_at: result.updated_at,
       };
     } catch (error) {
       console.error('Error obteniendo reserva:', error);
@@ -85,16 +90,18 @@ export class ReservationService {
     }
   }
 
-  async createReservation(reservationData: CreateReservationDTO): Promise<Reservation | null> {
+  async createReservation(
+    reservationData: CreateReservationDTO
+  ): Promise<Reservation | null> {
     try {
-      console.log('ReservationService.createReservation - Datos recibidos:', reservationData);
-      
       // Calcular duración en minutos si tenemos startTime y endTime
       let durationMinutes = reservationData.estimated_duration_minutes || 60;
       if (reservationData.startTime && reservationData.endTime) {
         const start = new Date(reservationData.startTime);
         const end = new Date(reservationData.endTime);
-        durationMinutes = Math.floor((end.getTime() - start.getTime()) / (1000 * 60));
+        durationMinutes = Math.floor(
+          (end.getTime() - start.getTime()) / (1000 * 60)
+        );
         console.log('Duración calculada:', durationMinutes, 'minutos');
       }
 
@@ -105,9 +112,9 @@ export class ReservationService {
         reservationData.endTime,
         durationMinutes,
         reservationData.totalAmount || 0,
-        reservationData.status || 'active'
+        reservationData.status || 'active',
       ];
-      
+
       console.log('Parámetros de la query:', queryParams);
 
       const result = await this.db.executeQuery(
@@ -137,9 +144,9 @@ export class ReservationService {
         amount: reservationData.totalAmount || 0,
         status: reservationData.status || 'active',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
-      
+
       console.log('Reserva creada exitosamente:', reservationResponse);
       return reservationResponse;
     } catch (error) {
@@ -148,13 +155,22 @@ export class ReservationService {
     }
   }
 
-  async updateReservation(reservationId: number, updates: UpdateReservationDTO): Promise<boolean> {
+  async updateReservation(
+    reservationId: number,
+    updates: UpdateReservationDTO
+  ): Promise<boolean> {
     try {
       const result = await this.db.executeQuery(
         `UPDATE reservations 
          SET end_time = ?, duration_minutes = ?, amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [updates.end_time, updates.duration_minutes, updates.amount, updates.status, reservationId]
+        [
+          updates.end_time,
+          updates.duration_minutes,
+          updates.amount,
+          updates.status,
+          reservationId,
+        ]
       );
 
       return result.rowsAffected > 0;
@@ -176,15 +192,16 @@ export class ReservationService {
           COALESCE(SUM(amount), 0) as totalSpent,
           COALESCE(SUM(duration_minutes), 0) as totalMinutes
         FROM reservations 
-        WHERE user_id = ? AND status = 'completed'
+        WHERE user_id = ?
       `;
-      
+
       const result = await this.db.getFirst(query, [userId]);
-      
+
       return {
         totalReservations: (result as any)?.totalReservations || 0,
         totalSpent: (result as any)?.totalSpent || 0,
-        totalHours: Math.round(((result as any)?.totalMinutes || 0) / 60 * 10) / 10
+        totalHours:
+          Math.round((((result as any)?.totalMinutes || 0) / 60) * 10) / 10,
       };
     } catch (error) {
       console.error('Error obteniendo estadísticas del usuario:', error);
@@ -205,9 +222,9 @@ export class ReservationService {
         ORDER BY r.start_time DESC
         LIMIT 1
       `;
-      
+
       const result = await this.db.getFirst(query, [userId]);
-      
+
       if (!result) {
         return null;
       }
@@ -225,7 +242,7 @@ export class ReservationService {
         amount: result.amount,
         status: result.status,
         created_at: result.created_at,
-        updated_at: result.updated_at
+        updated_at: result.updated_at,
       };
     } catch (error) {
       console.error('Error obteniendo reserva activa:', error);
@@ -250,8 +267,8 @@ export class ReservationService {
   }
 
   async getReservationsByDateRange(
-    userId: number, 
-    startDate: string, 
+    userId: number,
+    startDate: string,
     endDate: string
   ): Promise<ReservationHistory[]> {
     try {
@@ -272,10 +289,10 @@ export class ReservationService {
           AND DATE(r.start_time) BETWEEN ? AND ?
         ORDER BY r.start_time DESC
       `;
-      
+
       const results = await this.db.getAll(query, [userId, startDate, endDate]);
-      
-      return results.map(row => ({
+
+      return results.map((row) => ({
         id: row.id.toString(),
         parkingName: row.parkingName,
         address: row.address,
@@ -284,7 +301,7 @@ export class ReservationService {
         endTime: this.formatTime(row.endTime),
         duration: this.formatDuration(row.duration_minutes),
         amount: row.amount,
-        status: row.status
+        status: row.status,
       }));
     } catch (error) {
       console.error('Error obteniendo reservas por rango de fechas:', error);
@@ -301,10 +318,10 @@ export class ReservationService {
 
   private formatDuration(minutes: number): string {
     if (!minutes) return '0min';
-    
+
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    
+
     if (hours === 0) {
       return `${mins}min`;
     } else if (mins === 0) {
@@ -314,20 +331,23 @@ export class ReservationService {
     }
   }
 
-  async calculateAmount(parkingId: number, durationMinutes: number): Promise<number> {
+  async calculateAmount(
+    parkingId: number,
+    durationMinutes: number
+  ): Promise<number> {
     try {
       const parking = await this.db.getFirst(
         'SELECT price_per_hour FROM parkings WHERE id = ?',
         [parkingId]
       );
-      
+
       if (!parking) {
         return 0;
       }
 
       const pricePerHour = (parking as any).price_per_hour;
       const hours = durationMinutes / 60;
-      
+
       return Math.ceil(hours * pricePerHour);
     } catch (error) {
       console.error('Error calculando monto:', error);
