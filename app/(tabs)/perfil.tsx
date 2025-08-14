@@ -10,18 +10,11 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { User, Mail, Phone, CreditCard, Settings, CircleHelp as HelpCircle, Shield, LogOut, CreditCard as Edit, Bell, Car } from 'lucide-react-native';
-
-const userProfile = {
-  name: 'Juan Carlos Pérez',
-  email: 'juan.perez@email.com',
-  phone: '+502 1234-5678',
-  memberSince: 'Enero 2024',
-  totalReservations: 15,
-  favoriteParking: 'Centro Comercial Plaza',
-};
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -32,7 +25,10 @@ export default function ProfileScreen() {
         {
           text: 'Cerrar Sesión',
           style: 'destructive',
-          onPress: () => router.replace('/auth/login'),
+          onPress: () => {
+            logout();
+            router.replace('/auth/login');
+          },
         },
       ]
     );
@@ -62,10 +58,10 @@ export default function ProfileScreen() {
               <User size={32} color="#2563EB" />
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{userProfile.name}</Text>
-              <Text style={styles.profileEmail}>{userProfile.email}</Text>
+              <Text style={styles.profileName}>{user?.name || 'Usuario'}</Text>
+              <Text style={styles.profileEmail}>{user?.email || 'email@ejemplo.com'}</Text>
               <Text style={styles.memberSince}>
-                Miembro desde {userProfile.memberSince}
+                Miembro desde {user?.memberSince || 'Enero 2024'}
               </Text>
             </View>
             <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
@@ -76,16 +72,16 @@ export default function ProfileScreen() {
 
         <View style={styles.statsSection}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{userProfile.totalReservations}</Text>
+            <Text style={styles.statNumber}>{user?.totalReservations || 0}</Text>
             <Text style={styles.statLabel}>Reservas</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>4.8</Text>
+            <Text style={styles.statNumber}>{user?.rating || '5.0'}</Text>
             <Text style={styles.statLabel}>Calificación</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>₡45,600</Text>
-            <Text style={styles.statLabel}>Ahorrado</Text>
+            <Text style={styles.statNumber}>₡{user?.totalSpent?.toLocaleString() || '0'}</Text>
+            <Text style={styles.statLabel}>Total Gastado</Text>
           </View>
         </View>
 
@@ -95,13 +91,13 @@ export default function ProfileScreen() {
             <MenuItem
               icon={<Mail size={20} color="#6B7280" />}
               title="Correo Electrónico"
-              subtitle={userProfile.email}
+              subtitle={user?.email || 'No configurado'}
               onPress={() => Alert.alert('Editar Email', 'Función en desarrollo')}
             />
             <MenuItem
               icon={<Phone size={20} color="#6B7280" />}
               title="Teléfono"
-              subtitle={userProfile.phone}
+              subtitle={user?.phone || 'No configurado'}
               onPress={() => Alert.alert('Editar Teléfono', 'Función en desarrollo')}
             />
             <MenuItem

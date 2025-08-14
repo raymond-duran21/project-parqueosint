@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, User, Phone, Shield } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ export default function RegisterScreen() {
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
 
   const handleRegister = async () => {
     if (!formData.name || !formData.email || !formData.password) {
@@ -33,17 +35,41 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
     setLoading(true);
     
-    // Simular registro
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const success = await register({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        password: formData.password
+      });
+      
+      if (success) {
+        Alert.alert(
+          'Registro exitoso',
+          'Tu cuenta ha sido creada correctamente',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      } else {
+        Alert.alert(
+          'Error de registro',
+          'El email ya está registrado o hubo un problema. Inténtalo de nuevo.'
+        );
+      }
+    } catch (error) {
       Alert.alert(
-        'Registro exitoso',
-        'Tu cuenta ha sido creada correctamente',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        'Error',
+        'Hubo un problema al crear tu cuenta. Inténtalo de nuevo.'
       );
-    }, 1500);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateField = (field: string, value: string) => {

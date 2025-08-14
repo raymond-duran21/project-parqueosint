@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,52 +21,63 @@ import {
   Navigation,
   Calendar,
 } from 'lucide-react-native';
-
-const mockParkingDetails = {
-  '1': {
-    id: '1',
-    name: 'Centro Comercial Plaza',
-    address: 'Av. Principal 123, Centro',
-    distance: '0.2 km',
-    pricePerHour: 2500,
-    availableSpots: 15,
-    totalSpots: 100,
-    features: ['Cámaras', 'Sensores', 'QR'],
-    status: 'available',
-    description: 'Parqueo seguro en el corazón del centro comercial con acceso directo a todas las tiendas.',
-    operatingHours: '06:00 - 23:00',
-    security: 'Vigilancia 24/7 con cámaras de seguridad',
-    paymentMethods: ['Tarjeta de crédito', 'Wallet digital', 'Efectivo'],
-    contactPhone: '+502 2234-5678',
-  },
-  '2': {
-    id: '2',
-    name: 'Parqueo Municipal Norte',
-    address: 'Calle 5ta Norte, Zona 1',
-    distance: '0.5 km',
-    pricePerHour: 1800,
-    availableSpots: 3,
-    totalSpots: 50,
-    features: ['Sensores', 'QR'],
-    status: 'limited',
-    description: 'Parqueo municipal con tarifas accesibles y tecnología de sensores para facilitar encontrar espacios.',
-    operatingHours: '05:00 - 22:00',
-    security: 'Patrullaje regular y sensores de movimiento',
-    paymentMethods: ['Tarjeta de crédito', 'Wallet digital'],
-    contactPhone: '+502 2234-5679',
-  },
-};
+import { ParkingService } from '@/db/services/ParkingService';
+import { Parking } from '@/db/models';
 
 export default function ParkingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [loading, setLoading] = useState(false);
-  
-  const parking = mockParkingDetails[id as keyof typeof mockParkingDetails];
+  const [loading, setLoading] = useState(true);
+  const [parking, setParking] = useState<Parking | null>(null);
+  const [parkingService] = useState(() => new ParkingService());
+
+  useEffect(() => {
+    loadParkingDetails();
+  }, [id]);
+
+  const loadParkingDetails = async () => {
+    try {
+      const parkingId = parseInt(id as string, 10);
+      const parkingData = await parkingService.getParkingById(parkingId);
+      setParking(parkingData);
+    } catch (error) {
+      console.error('Error cargando detalles del parqueo:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshParkingData = async () => {
+    try {
+      const parkingId = parseInt(id as string, 10);
+      const parkingData = await parkingService.getParkingById(parkingId);
+      setParking(parkingData);
+    } catch (error) {
+      console.error('Error refrescando datos del parqueo:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando detalles del parqueo...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!parking) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Parqueo no encontrado</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Parqueo no encontrado</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Volver</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -527,6 +538,34 @@ const styles = StyleSheet.create({
   reserveText: {
     fontSize: 16,
     color: 'white',
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#EF4444',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2563EB',
     fontWeight: '600',
   },
 });

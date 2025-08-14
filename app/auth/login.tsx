@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, Shield } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -24,11 +26,25 @@ export default function LoginScreen() {
 
     setLoading(true);
     
-    // Simular autenticación
-    setTimeout(() => {
+    try {
+      const success = await login({ email, password });
+      
+      if (success) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert(
+          'Error de autenticación',
+          'Email o contraseña incorrectos. Inténtalo de nuevo.'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Hubo un problema al iniciar sesión. Inténtalo de nuevo.'
+      );
+    } finally {
       setLoading(false);
-      router.replace('/(tabs)');
-    }, 1500);
+    }
   };
 
   return (
