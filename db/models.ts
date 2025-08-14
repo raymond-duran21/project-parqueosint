@@ -114,7 +114,7 @@ export interface CreateReservationDTO {
   paymentMethod?: string;
   status?: 'active' | 'completed' | 'cancelled';
   estimated_duration_minutes?: number;
-  
+
   // Campos legacy para retrocompatibilidad
   user_id?: number;
   parking_id?: number;
@@ -148,17 +148,17 @@ export interface UpdateParkingDTO {
 export enum ReservationStatus {
   ACTIVE = 'active',
   COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 export enum ParkingStatus {
   AVAILABLE = 'available',
   LIMITED = 'limited',
-  FULL = 'full'
+  FULL = 'full',
 }
 
 export enum PaymentType {
   CARD = 'card',
   BANK = 'bank',
-  DIGITAL_WALLET = 'digital_wallet'
+  DIGITAL_WALLET = 'digital_wallet',
 }

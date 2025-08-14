@@ -1,19 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  Alert,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Clock, MapPin, DollarSign, CreditCard, Smartphone, Calendar, QrCode, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { Parking } from '@/db/models';
 import { ParkingService } from '@/db/services/ParkingService';
 import { ReservationService } from '@/db/services/ReservationService';
-import { Parking } from '@/db/models';
+import { router, useLocalSearchParams } from 'expo-router';
+import {
+  ArrowLeft,
+  Calendar,
+  CircleCheck as CheckCircle,
+  Clock,
+  CreditCard,
+  DollarSign,
+  MapPin,
+  QrCode,
+  Smartphone,
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function PaymentScreen() {
   const { parkingId } = useLocalSearchParams<{ parkingId: string }>();
@@ -25,6 +36,7 @@ export default function PaymentScreen() {
   const [reservationCode, setReservationCode] = useState('');
   const [parkingService] = useState(() => new ParkingService());
   const [reservationService] = useState(() => new ReservationService());
+  const { user, refreshProfile } = useAuth();
 
   useEffect(() => {
     loadParkingDetails();
@@ -32,7 +44,9 @@ export default function PaymentScreen() {
 
   const loadParkingDetails = async () => {
     try {
-      const parkingData = await parkingService.getParkingById(parseInt(parkingId as string, 10));
+      const parkingData = await parkingService.getParkingById(
+        parseInt(parkingId as string, 10)
+      );
       setParking(parkingData);
     } catch (error) {
       console.error('Error cargando detalles del parqueo:', error);
@@ -69,43 +83,53 @@ export default function PaymentScreen() {
   };
 
   const handleConfirmReservation = async () => {
+    if (!user) return;
     setLoading(true);
-    
+
     try {
       // Crear la reserva en la base de datos
       const startTime = new Date();
-      const endTime = new Date(startTime.getTime() + selectedDuration * 60 * 60 * 1000);
-      
+      const endTime = new Date(
+        startTime.getTime() + selectedDuration * 60 * 60 * 1000
+      );
+
       const newReservation = {
         parkingId: parking.id,
-        userId: 1, // Usuario mock - en una aplicación real esto vendría del contexto de autenticación
+        userId: user.id,
         status: 'active' as const,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         totalAmount: calculateTotal(),
         paymentMethod: selectedPayment,
       };
-      
-      const reservation = await reservationService.createReservation(newReservation);
-      
+
+      const reservation = await reservationService.createReservation(
+        newReservation
+      );
+
       if (!reservation) {
         throw new Error('No se pudo crear la reserva');
       }
-      
+
       // Generar código de reserva
       setReservationCode(`SP${reservation.id.toString().padStart(6, '0')}`);
-      
+
       // Actualizar espacios disponibles en el parqueo
-      const updateSuccess = await parkingService.decrementAvailableSpots(parking.id);
+      const updateSuccess = await parkingService.decrementAvailableSpots(
+        parking.id
+      );
       if (!updateSuccess) {
         console.warn('No se pudo actualizar la disponibilidad del parqueo');
       }
-      
+
+      // Refrescar el perfil del usuario para actualizar totalSpent y otros datos
+      await refreshProfile();
+
       setReservationConfirmed(true);
     } catch (error) {
       console.error('Error confirmando reserva:', error);
       Alert.alert(
-        'Error', 
+        'Error',
         'No se pudo confirmar la reserva. Por favor, inténtalo de nuevo.'
       );
     } finally {
@@ -137,7 +161,7 @@ export default function PaymentScreen() {
 
           <View style={styles.reservationDetails}>
             <Text style={styles.detailsTitle}>Detalles de la Reserva</Text>
-            
+
             <View style={styles.detailRow}>
               <MapPin size={16} color="#6B7280" />
               <View style={styles.detailContent}>
@@ -158,7 +182,9 @@ export default function PaymentScreen() {
               <DollarSign size={16} color="#6B7280" />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Total Pagado</Text>
-                <Text style={styles.detailValue}>{formatCurrency(calculateTotal())}</Text>
+                <Text style={styles.detailValue}>
+                  {formatCurrency(calculateTotal())}
+                </Text>
               </View>
             </View>
 
@@ -166,7 +192,9 @@ export default function PaymentScreen() {
               <Calendar size={16} color="#6B7280" />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Código de Reserva</Text>
-                <Text style={styles.detailValue}>#{reservationCode || `SP${Date.now().toString().slice(-6)}`}</Text>
+                <Text style={styles.detailValue}>
+                  #{reservationCode || `SP${Date.now().toString().slice(-6)}`}
+                </Text>
               </View>
             </View>
           </View>
@@ -209,14 +237,16 @@ export default function PaymentScreen() {
                 key={duration.hours}
                 style={[
                   styles.durationButton,
-                  selectedDuration === duration.hours && styles.durationButtonActive,
+                  selectedDuration === duration.hours &&
+                    styles.durationButtonActive,
                 ]}
                 onPress={() => setSelectedDuration(duration.hours)}
               >
                 <Text
                   style={[
                     styles.durationText,
-                    selectedDuration === duration.hours && styles.durationTextActive,
+                    selectedDuration === duration.hours &&
+                      styles.durationTextActive,
                   ]}
                 >
                   {duration.label}
@@ -224,7 +254,8 @@ export default function PaymentScreen() {
                 <Text
                   style={[
                     styles.durationPrice,
-                    selectedDuration === duration.hours && styles.durationPriceActive,
+                    selectedDuration === duration.hours &&
+                      styles.durationPriceActive,
                   ]}
                 >
                   {formatCurrency(parking.pricePerHour * duration.hours)}
@@ -253,7 +284,8 @@ export default function PaymentScreen() {
                 <Text
                   style={[
                     styles.paymentMethodText,
-                    selectedPayment === method.id && styles.paymentMethodTextActive,
+                    selectedPayment === method.id &&
+                      styles.paymentMethodTextActive,
                   ]}
                 >
                   {method.label}
@@ -297,29 +329,38 @@ export default function PaymentScreen() {
 
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>Resumen de Pago</Text>
-          
+
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Parqueo por {selectedDuration}h</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(calculateTotal())}</Text>
+            <Text style={styles.summaryLabel}>
+              Parqueo por {selectedDuration}h
+            </Text>
+            <Text style={styles.summaryValue}>
+              {formatCurrency(calculateTotal())}
+            </Text>
           </View>
-          
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tarifa de servicio</Text>
             <Text style={styles.summaryValue}>₡0</Text>
           </View>
-          
+
           <View style={styles.summaryDivider} />
-          
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryTotalLabel}>Total a Pagar</Text>
-            <Text style={styles.summaryTotalValue}>{formatCurrency(calculateTotal())}</Text>
+            <Text style={styles.summaryTotalValue}>
+              {formatCurrency(calculateTotal())}
+            </Text>
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.reserveButton, loading && styles.reserveButtonDisabled]}
+          style={[
+            styles.reserveButton,
+            loading && styles.reserveButtonDisabled,
+          ]}
           onPress={handleConfirmReservation}
           disabled={loading}
         >

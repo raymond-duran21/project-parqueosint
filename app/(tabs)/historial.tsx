@@ -1,23 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { HistoryCard } from '@/components/HistoryCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { ReservationHistory } from '@/db/models';
+import { ReservationService } from '@/db/services/ReservationService';
+import { Calendar, Clock, DollarSign } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import { Calendar, MapPin, Clock, DollarSign, Filter } from 'lucide-react-native';
-import { HistoryCard } from '@/components/HistoryCard';
-import { ReservationService } from '@/db/services/ReservationService';
-import { ReservationHistory } from '@/db/models';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function HistoryScreen() {
   const [selectedFilter, setSelectedFilter] = useState('todos');
   const [history, setHistory] = useState<ReservationHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalReservations: 0, totalSpent: 0, totalHours: 0 });
+  const [stats, setStats] = useState({
+    totalReservations: 0,
+    totalSpent: 0,
+    totalHours: 0,
+  });
   const { user } = useAuth();
   const [reservationService] = useState(() => new ReservationService());
 
@@ -30,7 +34,7 @@ export default function HistoryScreen() {
 
   const loadHistory = async () => {
     if (!user) return;
-    
+
     try {
       const data = await reservationService.getUserReservations(user.id);
       setHistory(data);
@@ -43,7 +47,7 @@ export default function HistoryScreen() {
 
   const loadStats = async () => {
     if (!user) return;
-    
+
     try {
       const userStats = await reservationService.getUserStats(user.id);
       setStats(userStats);
@@ -53,7 +57,7 @@ export default function HistoryScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `₡${amount.toLocaleString()}`;
+    return `$${amount.toLocaleString()}`;
   };
 
   return (
@@ -72,9 +76,7 @@ export default function HistoryScreen() {
 
         <View style={styles.statCard}>
           <Clock size={24} color="#10B981" />
-          <Text style={styles.statNumber}>
-            {stats.totalHours}h
-          </Text>
+          <Text style={styles.statNumber}>{stats.totalHours}h</Text>
           <Text style={styles.statLabel}>Tiempo Total</Text>
         </View>
 
@@ -142,7 +144,10 @@ export default function HistoryScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.historyList}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionTitle}>Reservas Recientes</Text>
         {loading ? (
           <Text style={styles.loadingText}>Cargando historial...</Text>
